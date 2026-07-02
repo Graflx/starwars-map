@@ -1,0 +1,120 @@
+import vaderImg    from '../assets/sith-vader.png'
+import maulImg     from '../assets/sith-maul.png'
+import sidiousImg  from '../assets/sith-sidious.png'
+import revanImg from '../assets/sith-revan.png'
+import baneImg     from '../assets/sith-bane.png'
+import plagueisImg from '../assets/sith-plagueis.png'
+
+export const sithLords = [
+  {
+    id: 'vader',
+    name: 'Darth Vader',
+    title: 'The Chosen One',
+    era: 'Galactic Empire',
+    image: vaderImg,
+    lightsaber: 'Single blade (Red)',
+    quote: 'I am your father.',
+    quoteAttr: '— Darth Vader, Cloud City',
+    powerLevel: 98,
+    stats: { 'Lightsaber Combat': 95, 'Dark Side': 90, Intrigue: 40, Force: 97, Menace: 99 },
+    keyFacts: [
+      'Once Anakin Skywalker — the Chosen One of the prophecy',
+      'Fell to the dark side through fear of loss and Palpatine\'s manipulation',
+      'Destroyed the Jedi Order and hunted down the last survivors',
+      'Found redemption in the end through love for his son',
+    ],
+  },
+  {
+    id: 'maul',
+    name: 'Darth Maul',
+    title: 'The Beast of Vengeance',
+    era: 'Fall of the Republic',
+    image: maulImg,
+    lightsaber: 'Double blade (Red)',
+    quote: 'At last we will reveal ourselves to the Jedi.',
+    quoteAttr: '— Darth Maul, Naboo',
+    powerLevel: 87,
+    stats: { 'Lightsaber Combat': 92, 'Dark Side': 85, Intrigue: 55, Force: 78, Menace: 88 },
+    keyFacts: [
+      'Abducted by Sidious as a child and forged into the perfect weapon',
+      'Master of double-bladed lightsaber combat',
+      'Survived being cut in half on Naboo through sheer rage',
+      'Built a criminal empire and challenged Sidious',
+    ],
+  },
+  {
+    id: 'sidious',
+    name: 'Darth Sidious',
+    title: 'The Puppet Master',
+    era: 'Fall of the Republic · Empire',
+    image: sidiousImg,
+    lightsaber: 'Two single blades (Red)',
+    quote: 'Unlimited power!',
+    quoteAttr: '— Darth Sidious / Palpatine',
+    powerLevel: 100,
+    stats: { 'Lightsaber Combat': 80, 'Dark Side': 100, Intrigue: 100, Force: 99, Menace: 95 },
+    keyFacts: [
+      'Orchestrated the fall of the Galactic Republic from within',
+      'Master of the dark side and of political manipulation',
+      'Created the Galactic Empire and ruled as Emperor',
+      'Commanded Force lightning and could cheat death itself',
+    ],
+  },
+  {
+    id: 'revan',
+    name: 'Darth Revan',
+    title: 'The Lost Genius',
+    era: 'Old Republic',
+    image: revanImg,
+    blendMode: 'screen',
+    lightsaber: 'Single blade (Purple / Red)',
+    quote: 'I am Revan reborn. And before me, you will bow.',
+    quoteAttr: '— Revan',
+    powerLevel: 95,
+    stats: { 'Lightsaber Combat': 93, 'Dark Side': 88, Intrigue: 75, Force: 95, Menace: 82 },
+    keyFacts: [
+      'Was both a Jedi Knight and a Sith Lord — an unprecedented duality',
+      'Brilliant military strategist of the Mandalorian Wars',
+      'His mind endured centuries of captivity under the Sith Emperor',
+      'Walked between light and dark like no one before him',
+    ],
+  },
+  {
+    id: 'bane',
+    name: 'Darth Bane',
+    title: 'Architect of Shadows',
+    era: 'Old Republic',
+    image: baneImg,
+    lightsaber: 'Curved hilt (Red)',
+    quote: 'Two there should be. No more, no less. One master and one apprentice.',
+    quoteAttr: '— Darth Bane, creator of the Rule of Two',
+    powerLevel: 91,
+    stats: { 'Lightsaber Combat': 85, 'Dark Side': 92, Intrigue: 88, Force: 90, Menace: 78 },
+    keyFacts: [
+      'Creator of the legendary Rule of Two',
+      'Destroyed the entire Brotherhood of Darkness',
+      'Wore the dreaded Orbalisk armor that made him nearly invulnerable',
+      'His doctrine shaped every Sith after him for over 1,000 years',
+    ],
+  },
+  {
+    id: 'plagueis',
+    name: 'Darth Plagueis',
+    title: 'The Wise',
+    era: 'Before the Clone Wars',
+    image: plagueisImg,
+    lightsaber: 'Single blade (Red)',
+    quote: 'The dark side of the Force is a pathway to many abilities some consider to be… unnatural.',
+    quoteAttr: '— Darth Sidious on Plagueis, Coruscant Opera House',
+    powerLevel: 89,
+    stats: { 'Lightsaber Combat': 60, 'Dark Side': 98, Intrigue: 90, Force: 96, Menace: 65 },
+    keyFacts: [
+      'Researched the manipulation of midi-chlorians to create life',
+      'Master of Darth Sidious — and his ultimate victim',
+      'Could prevent death, but not his own',
+      'His knowledge of the Force may have been the greatest of all the Sith',
+    ],
+  },
+]
+
+export const getSith = (id) => sithLords.find((s) => s.id === id)

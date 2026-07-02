@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS VARIABLES (from Claude) ── */
+:root {
+  --sith-red:      #E22222;
+  --sith-red-dim:  #8B0000;
+  --sith-red-glow: rgba(226, 34, 34, 0.4);
+  --sith-red-subtle: rgba(226, 34, 34, 0.08);
+  --void:          #060608;
+  --abyss:         #0a0a0e;
+  --obsidian:      #111116;
+  --shadow-bg:     #1a1a22;
+  --muted:         #2a2a35;
+  --text-primary:  #f0e8e8;
+  --text-secondary:#9a8888;
+  --text-dim:      #4a4050;
+  --gold:          #c9a84c;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 18px; }
+
+/* ── BODY ── */
+body {
+  background: var(--void);
+  color: var(--text-primary);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Custom cursor (from Claude) */
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='4' fill='%23E22222' opacity='0.8'/%3E%3Ccircle cx='10' cy='10' r='8' stroke='%23E22222' stroke-width='1' fill='none' opacity='0.4'/%3E%3C/svg%3E") 10 10, crosshair;
+}
+
+/* ── NOISE OVERLAY (from Claude) ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.4;
+}
+
+/* ── SCANLINES / STRIPES (from Claude) ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb { background: var(--sith-red-dim); border-radius: 2px; }
+
+/* ── UTILITIES ── */
+@layer utilities {
+  /* H1 glow (from Lovable) */
+  .text-glow {
+    text-shadow:
+      0 0 20px rgba(226, 34, 34, 0.45),
+      0 0 40px rgba(226, 34, 34, 0.2),
+      0 0  4px rgba(226, 34, 34, 0.6);
+  }
+  /* Red highlight span (from Lovable) */
+  .text-sith-red { color: var(--sith-red); }
+
+  .border-sith    { border-color: rgba(226, 34, 34, 0.2); }
+  .bg-obsidian    { background: var(--obsidian); }
+  .bg-abyss       { background: var(--abyss); }
+  .text-dim       { color: var(--text-dim); }
+  .text-secondary { color: var(--text-secondary); }
+}

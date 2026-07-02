@@ -1,0 +1,3 @@
+Textures: ShinyMan (CGTrader) & Sci-Fi3D 'Ultimate Planets Pack', each non-commercial.
+Preview images: Wookieepedia (Fandom), Fair Use.
+Structure: types/<type>/{base,bump,rough,clouds,light}  |  worlds/<planet>/{base,bump,clouds,light,preview}
