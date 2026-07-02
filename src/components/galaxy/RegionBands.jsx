@@ -26,7 +26,7 @@ const signedArea = (v) => {
   return a / 2
 }
 // Orient a ring: outer contours CCW (area > 0), holes CW, so ShapeGeometry carves cleanly.
-const orient = (v, ccw) => (signedArea(v) > 0 === ccw ? v : v.slice().reverse())
+const orient = (v, ccw) => ((signedArea(v) > 0) === ccw ? v : v.slice().reverse())
 
 function borderGeometry(v) {
   const pos = []
