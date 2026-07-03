@@ -34,24 +34,18 @@ export default function NavControls({ cameraApiRef }) {
   )
 
   return (
-    <div className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-3">
-      {/* Zoom */}
-      <div className="flex flex-col gap-1">
-        <Btn onClick={zoom(ZOOM_IN)} label="+" aria="Zoom in" />
-        <Btn onClick={zoom(ZOOM_OUT)} label="−" aria="Zoom out" />
-      </div>
-
-      {/* Rotate (D-pad) */}
+    <div className="absolute bottom-3 right-3 z-20" role="group" aria-label="Camera controls">
+      {/* Rotate (D-pad) + zoom, laid out as one square grid */}
       <div className="grid grid-cols-3 gap-1">
-        <span />
+        <Btn onClick={zoom(ZOOM_OUT)} label="−" aria="Zoom out" />
         <Btn onClick={rotate(0, -ROT)} label="↑" aria="Rotate up" />
-        <span />
+        <Btn onClick={zoom(ZOOM_IN)} label="+" aria="Zoom in" />
         <Btn onClick={rotate(-ROT, 0)} label="←" aria="Rotate left" />
         <Btn onClick={reset} label="⟳" aria="Reset view" />
         <Btn onClick={rotate(ROT, 0)} label="→" aria="Rotate right" />
-        <span />
+        <span aria-hidden="true" />
         <Btn onClick={rotate(0, ROT)} label="↓" aria="Rotate down" />
-        <span />
+        <span aria-hidden="true" />
       </div>
     </div>
   )

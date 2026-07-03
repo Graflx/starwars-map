@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useId, useMemo, useRef, useState } from 'react'
 import { planets, inContinuity } from '../../data/planets'
 
 // Levenshtein distance (small → similar) for typo-tolerant search.
@@ -35,11 +35,18 @@ function score(query, name) {
 
 // Search bar with auto-suggestions. onSelect(planet) is called on click/Enter.
 // Only suggests worlds visible in the current continuity ('canon' | 'legends').
+// Implemented as an ARIA 1.2 combobox (input) + listbox (suggestions) pair:
+// the input keeps focus at all times and drives the highlighted option via
+// aria-activedescendant, exactly matching the existing arrow-key behaviour.
 export default function SearchBar({ onSelect, continuity = 'canon' }) {
   const [value, setValue] = useState('')
   const [open, setOpen] = useState(false)
   const [hi, setHi] = useState(0)
   const inputRef = useRef(null)
+  const baseId = useId()
+  const labelId = `${baseId}-label`
+  const listId = `${baseId}-listbox`
+  const optionId = (i) => `${baseId}-option-${i}`
 
   const suggestions = useMemo(() => {
     if (!value.trim()) return []
@@ -52,16 +59,20 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
       .map((x) => x.p)
   }, [value, continuity])
 
+  const isOpen = open && suggestions.length > 0
+
   const choose = (planet) => {
     if (!planet) return
     onSelect(planet)
     setValue(planet.name)
     setOpen(false)
-    inputRef.current?.blur()
+    // No explicit blur(): selecting a planet opens PlanetInfoPanel, which
+    // moves focus into itself and also needs document.activeElement (still
+    // this input, until then) to know where to return focus once it closes.
   }
 
   const onKeyDown = (e) => {
-    if (!open || suggestions.length === 0) {
+    if (!isOpen) {
       if (e.key === 'Enter' && suggestions[0]) choose(suggestions[0])
       return
     }
@@ -81,7 +92,11 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
 
   return (
     <div className="relative w-full">
+      <label htmlFor={baseId} id={labelId} className="sr-only">
+        Search planet
+      </label>
       <input
+        id={baseId}
         ref={inputRef}
         value={value}
         onChange={(e) => {
@@ -101,10 +116,18 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
           color: 'var(--text-primary)',
           backdropFilter: 'blur(6px)',
         }}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isOpen}
+        aria-controls={listId}
+        aria-activedescendant={isOpen ? optionId(hi) : undefined}
       />
 
-      {open && suggestions.length > 0 && (
+      {isOpen && (
         <ul
+          id={listId}
+          role="listbox"
+          aria-labelledby={labelId}
           className="absolute left-0 right-0 mt-1 z-50 overflow-hidden"
           style={{
             background: 'rgba(10,10,14,0.95)',
@@ -114,27 +137,29 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
           }}
         >
           {suggestions.map((p, i) => (
-            <li key={p.id}>
-              <button
-                // onMouseDown instead of onClick: fires before input.onBlur
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  choose(p)
-                }}
-                onMouseEnter={() => setHi(i)}
-                className="w-full text-left px-4 py-2 flex items-center justify-between gap-3 transition"
-                style={{ background: i === hi ? 'rgba(226,34,34,0.15)' : 'transparent' }}
+            <li
+              key={p.id}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === hi}
+              // onMouseDown instead of onClick: fires before input.onBlur
+              onMouseDown={(e) => {
+                e.preventDefault()
+                choose(p)
+              }}
+              onMouseEnter={() => setHi(i)}
+              className="w-full text-left px-4 py-2 flex items-center justify-between gap-3 transition cursor-pointer"
+              style={{ background: i === hi ? 'rgba(226,34,34,0.15)' : 'transparent' }}
+            >
+              <span className="font-display text-sm" style={{ color: 'var(--text-primary)' }}>
+                {p.name}
+              </span>
+              <span
+                className="font-sans text-[0.6rem] uppercase tracking-[0.15em] truncate"
+                style={{ color: 'var(--text-dim)' }}
               >
-                <span className="font-display text-sm" style={{ color: 'var(--text-primary)' }}>
-                  {p.name}
-                </span>
-                <span
-                  className="font-sans text-[0.6rem] uppercase tracking-[0.15em] truncate"
-                  style={{ color: 'var(--text-dim)' }}
-                >
-                  {p.region}
-                </span>
-              </button>
+                {p.region}
+              </span>
             </li>
           ))}
         </ul>

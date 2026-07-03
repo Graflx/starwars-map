@@ -42,6 +42,29 @@ export default function Timeline({ t, onChange }) {
     setFromClientX(e.clientX)
   }
 
+  const STEP = 1 / 100 // ~1% of the timeline per arrow-key press
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      onChange(Math.max(t - STEP, 0))
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      onChange(Math.min(t + STEP, 1))
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      onChange(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      onChange(1)
+    } else if (e.key === 'PageDown') {
+      e.preventDefault()
+      onChange(Math.max(t - STEP * 10, 0))
+    } else if (e.key === 'PageUp') {
+      e.preventDefault()
+      onChange(Math.min(t + STEP * 10, 1))
+    }
+  }
+
   const currentYear = tToYear(t)
 
   return (
@@ -54,12 +77,12 @@ export default function Timeline({ t, onChange }) {
       }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span
+        <h2
           className="font-sans text-[0.6rem] uppercase tracking-[0.35em]"
           style={{ color: 'var(--sith-red)' }}
         >
           Galactic timeline
-        </span>
+        </h2>
         <span className="font-display text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
           {formatYear(currentYear)}
         </span>
@@ -70,6 +93,14 @@ export default function Timeline({ t, onChange }) {
         ref={trackRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
+        onKeyDown={onKeyDown}
+        role="slider"
+        tabIndex={0}
+        aria-label="Galactic timeline"
+        aria-valuemin={allYears[0]}
+        aria-valuemax={allYears[allYears.length - 1]}
+        aria-valuenow={Math.round(currentYear)}
+        aria-valuetext={formatYear(currentYear)}
         className="relative h-8 flex items-center"
         style={{ cursor: 'pointer', touchAction: 'none' }}
       >

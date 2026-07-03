@@ -40,6 +40,8 @@ export default function GalaxyMap() {
   }
   const controlsRef = useRef(null)
   const cameraApiRef = useRef(null) // animated camera API set by the CameraRig
+  const mainHeadingRef = useRef(null) // focus fallback once PlanetInfoPanel closes
+  const infoPanelOpenerRef = useRef(null) // element to return focus to on close
 
   // Switch continuity; close the popup if its world isn't shown in the new mode.
   const changeContinuity = (mode) => {
@@ -49,8 +51,12 @@ export default function GalaxyMap() {
   }
 
   // Focus a planet: open the popup AND smoothly move/center the camera.
-  // Used by the search AND by clicking on a planet.
+  // Used by the search AND by clicking on a planet. Captures the currently
+  // focused element *synchronously*, before any of it can unmount (e.g. the
+  // search input, whose containing FilterPanel closes in this same update),
+  // so PlanetInfoPanel can hand focus back to it once closed.
   const focusOnPlanet = (id) => {
+    infoPanelOpenerRef.current = document.activeElement
     setSelectedPlanetId(id)
     cameraApiRef.current?.focusPlanet(getPlanet(id))
   }
@@ -80,9 +86,11 @@ export default function GalaxyMap() {
     )
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden" style={{ background: 'var(--void)' }}>
+    <main className="relative w-screen h-screen overflow-hidden" style={{ background: 'var(--void)' }}>
+      <h1 ref={mainHeadingRef} tabIndex={-1} className="sr-only">Star Wars Galaxy Map</h1>
+
       {/* Top right: filter popup (search + continuity + famous-worlds toggle) */}
-      <div className="absolute top-6 right-6 z-40">
+      <div className="absolute top-3 right-3 z-40">
         <FilterPanel
           continuity={continuity}
           onContinuity={changeContinuity}
@@ -105,27 +113,34 @@ export default function GalaxyMap() {
         />
       </div>
 
-      <Canvas
-        frameloop="demand"
-        camera={{ position: [105, 88, 193], fov: 55 }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: 'default' }}
-        style={{ position: 'absolute', inset: 0 }}
-      >
-        <Suspense fallback={null}>
-          <GalaxyScene
-            activeRoutes={SHOW_ROUTES ? activeRoutes : []}
-            currentYear={currentYear}
-            selectedPlanetId={selectedPlanetId}
-            onSelectPlanet={focusOnPlanet}
-            controlsRef={controlsRef}
-            cameraApiRef={cameraApiRef}
-            filters={filters}
-            showGrid={showGrid}
-            showRegions={showRegions}
-          />
-        </Suspense>
-      </Canvas>
+      {/* The 3D scene is pointer/touch-driven and purely decorative from an
+          assistive-tech standpoint — every planet it shows is reachable (and
+          its details readable) via the Search field above, and the camera via
+          the NavControls D-pad below. Hiding it keeps screen readers from
+          announcing the floating, mouse-only hover labels rendered inside it. */}
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
+        <Canvas
+          frameloop="demand"
+          camera={{ position: [105, 88, 193], fov: 55 }}
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, powerPreference: 'default' }}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          <Suspense fallback={null}>
+            <GalaxyScene
+              activeRoutes={SHOW_ROUTES ? activeRoutes : []}
+              currentYear={currentYear}
+              selectedPlanetId={selectedPlanetId}
+              onSelectPlanet={focusOnPlanet}
+              controlsRef={controlsRef}
+              cameraApiRef={cameraApiRef}
+              filters={filters}
+              showGrid={showGrid}
+              showRegions={showRegions}
+            />
+          </Suspense>
+        </Canvas>
+      </div>
 
       {SHOW_ROUTES && (
         <>
@@ -136,7 +151,12 @@ export default function GalaxyMap() {
 
       <NavControls cameraApiRef={cameraApiRef} />
 
-      <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanetId(null)} />
-    </div>
+      <PlanetInfoPanel
+        planet={selectedPlanet}
+        onClose={() => setSelectedPlanetId(null)}
+        openerRef={infoPanelOpenerRef}
+        fallbackFocusRef={mainHeadingRef}
+      />
+    </main>
   )
 }

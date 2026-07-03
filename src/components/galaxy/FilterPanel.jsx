@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useId, useRef, useState } from 'react'
 import SearchBar from './SearchBar'
 import ContinuityToggle from './ContinuityToggle'
 import { REGION_OPTIONS, TYPE_OPTIONS, FACTION_OPTIONS, REGION_COLORS } from '../../data/planetFilters'
@@ -15,27 +15,33 @@ const rgba = (hex, a) => {
 const contrast = (hex) => {
   const n = parseInt(hex.slice(1), 16)
   const L = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
-  return L > 0.6 ? '#0a0a0e' : '#f5efef'
+  // Pure white (not the theme's off-white f0e8e8/f5efef) — on the saturated
+  // sith-red chip background, the off-white variants dipped just under the
+  // WCAG AA 4.5:1 text-contrast minimum; pure white clears it (~4.7:1).
+  return L > 0.6 ? '#0a0a0e' : '#ffffff'
 }
 const typeThumb = (id) => getPlanetMaterial({ type: id }).map || null
 
 function Section({ label, children }) {
   return (
     <div className="mb-4">
-      <div className="font-sans text-[0.6rem] uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--text-dim)' }}>
+      <h2 className="font-sans text-[0.6rem] uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--text-dim)' }}>
         {label}
-      </div>
+      </h2>
       {children}
     </div>
   )
 }
 
-function Toggle({ checked, onChange }) {
+// Accessible switch. `ariaLabel` gives it a name since the visible label text
+// usually lives in a sibling element rather than inside the button itself.
+function Toggle({ checked, onChange, ariaLabel }) {
   return (
     <button
       onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       style={{
         width: '2.6rem',
         height: '1.4rem',
@@ -49,6 +55,7 @@ function Toggle({ checked, onChange }) {
       }}
     >
       <span
+        aria-hidden="true"
         style={{
           position: 'absolute',
           top: '2px',
@@ -69,10 +76,10 @@ function Toggle({ checked, onChange }) {
 // selected → solid 100% colour fill + contrast text; unselected → faint tint.
 // With `thumb(id)` (texture tile) or `logo(id)` (emblem) chips become vertical
 // cards: a large image on top, label underneath.
-function ChipGroup({ options, selected, onToggle, colorFor, thumb, logo }) {
+function ChipGroup({ groupLabel, options, selected, onToggle, colorFor, thumb, logo }) {
   const cards = !!(thumb || logo)
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2" role="group" aria-label={groupLabel}>
       {options.map((o) => {
         const id = typeof o === 'string' ? o : o.id
         const label = typeof o === 'string' ? o : o.label
@@ -94,6 +101,7 @@ function ChipGroup({ options, selected, onToggle, colorFor, thumb, logo }) {
             <button
               key={id}
               onClick={() => onToggle(id)}
+              aria-pressed={active}
               className="rounded-sm font-sans text-[0.7rem] px-2.5 py-1.5"
               style={base}
             >
@@ -106,6 +114,7 @@ function ChipGroup({ options, selected, onToggle, colorFor, thumb, logo }) {
           <button
             key={id}
             onClick={() => onToggle(id)}
+            aria-pressed={active}
             className="rounded font-sans text-[0.62rem] flex flex-col items-center gap-1.5 p-2"
             style={{ ...base, width: '4.6rem' }}
           >
@@ -144,14 +153,14 @@ function ToggleRow({ label, sub, checked, onChange }) {
   return (
     <div className="flex items-center justify-between gap-4 mb-2">
       <div>
-        <div className="font-sans text-sm" style={{ color: 'var(--text-primary)' }}>{label}</div>
+        <p className="font-sans text-sm" style={{ color: 'var(--text-primary)' }}>{label}</p>
         {sub && (
-          <div className="font-sans text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: 'var(--text-dim)' }}>
+          <p className="font-sans text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: 'var(--text-dim)' }}>
             {sub}
-          </div>
+          </p>
         )}
       </div>
-      <Toggle checked={checked} onChange={onChange} />
+      <Toggle checked={checked} onChange={onChange} ariaLabel={[label, sub].filter(Boolean).join(' — ')} />
     </div>
   )
 }
@@ -179,11 +188,29 @@ export default function FilterPanel({
   onShowRegions,
 }) {
   const [open, setOpen] = useState(false)
+  const panelId = useId()
+  const triggerRef = useRef(null)
+  const panelRef = useRef(null)
+
+  // Move focus into the popup when it opens; on close, hand focus back to the
+  // trigger button (unless focus already moved elsewhere, e.g. a search pick).
+  useEffect(() => {
+    if (open) panelRef.current?.focus({ preventScroll: true })
+  }, [open])
+
+  const close = () => {
+    setOpen(false)
+    triggerRef.current?.focus({ preventScroll: true })
+  }
 
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls={panelId}
         className="flex items-center gap-2 px-4 font-sans text-[0.65rem] uppercase tracking-[0.3em] transition"
         style={{
           height: '2.4rem',
@@ -194,14 +221,25 @@ export default function FilterPanel({
           backdropFilter: 'blur(6px)',
         }}
       >
-        <span style={{ fontSize: '0.9rem', lineHeight: 1 }}>⚙</span> Filter
+        <span aria-hidden="true" style={{ fontSize: '0.9rem', lineHeight: 1 }}>⚙</span> Filter
       </button>
 
       {open && (
         <div
+          id={panelId}
+          ref={panelRef}
+          tabIndex={-1}
+          role="region"
+          aria-label="Filter options"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              close()
+            }
+          }}
           className="absolute right-0 mt-2 z-50 p-5"
           style={{
-            width: '21rem',
+            width: 'min(21rem, calc(100vw - 1.5rem))',
             maxHeight: '80vh',
             overflowY: 'auto',
             background: 'rgba(10,10,14,0.97)',
@@ -209,6 +247,7 @@ export default function FilterPanel({
             borderRadius: '3px',
             backdropFilter: 'blur(10px)',
             boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+            outline: 'none',
           }}
         >
           <Section label="Search">
@@ -227,18 +266,19 @@ export default function FilterPanel({
 
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <div className="font-sans text-sm" style={{ color: 'var(--text-primary)' }}>
+              <p className="font-sans text-sm" style={{ color: 'var(--text-primary)' }}>
                 Famous worlds
-              </div>
-              <div className="font-sans text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: 'var(--text-dim)' }}>
+              </p>
+              <p className="font-sans text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: 'var(--text-dim)' }}>
                 Only planets from the films
-              </div>
+              </p>
             </div>
-            <Toggle checked={famousOnly} onChange={onFamous} />
+            <Toggle checked={famousOnly} onChange={onFamous} ariaLabel="Famous worlds — only planets from the films" />
           </div>
 
           <Section label="Region">
             <ChipGroup
+              groupLabel="Region"
               options={REGION_OPTIONS}
               selected={regions}
               onToggle={onToggleRegion}
@@ -247,11 +287,23 @@ export default function FilterPanel({
           </Section>
 
           <Section label="World type">
-            <ChipGroup options={TYPE_OPTIONS} selected={types} onToggle={onToggleType} thumb={typeThumb} />
+            <ChipGroup
+              groupLabel="World type"
+              options={TYPE_OPTIONS}
+              selected={types}
+              onToggle={onToggleType}
+              thumb={typeThumb}
+            />
           </Section>
 
           <Section label="Faction">
-            <ChipGroup options={FACTION_OPTIONS} selected={factions} onToggle={onToggleFaction} logo={factionLogo} />
+            <ChipGroup
+              groupLabel="Faction"
+              options={FACTION_OPTIONS}
+              selected={factions}
+              onToggle={onToggleFaction}
+              logo={factionLogo}
+            />
           </Section>
 
           <Section label="Map overlays">
@@ -263,9 +315,9 @@ export default function FilterPanel({
             className="mt-4 pt-3 flex items-center justify-between"
             style={{ borderTop: '1px solid rgba(226,34,34,0.12)' }}
           >
-            <span className="font-sans text-[0.6rem] uppercase tracking-[0.2em]" style={{ color: 'var(--text-dim)' }}>
+            <p className="font-sans text-[0.6rem] uppercase tracking-[0.2em]" style={{ color: 'var(--text-dim)' }}>
               {visibleCount.toLocaleString('en-US')} worlds shown
-            </span>
+            </p>
             {activeFilters && (
               <button
                 onClick={onReset}

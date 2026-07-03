@@ -62,7 +62,7 @@ const HOME_POS = new THREE.Vector3(105, 88, 193) // matches SCENE_SCALE in plane
 //   reset()             – initial view
 // All only set a target; useFrame interpolates the camera smoothly toward it.
 function CameraRig({ apiRef, controlsRef }) {
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const dest = useRef(null)
   const initialPos = useRef(null)
 
@@ -110,7 +110,24 @@ function CameraRig({ apiRef, controlsRef }) {
     const d = dest.current
     const controls = controlsRef.current
     if (!d || !controls) return
-    const k = Math.min(1, delta * 4)
+    // OrbitControls runs its own per-frame update() (drei mounts it at
+    // priority -1, so it runs before this callback) which keeps applying
+    // whatever tiny rotate/pan delta the triggering click left behind —  a
+    // real mouse/trackpad click is essentially never pixel-perfectly still
+    // between press and release. With damping on, that leftover delta decays
+    // over the following frames as a small extra nudge riding on top of our
+    // lerp, which reads as a jiggle. Disabling controls for the duration of a
+    // scripted flight stops it from processing input (old or new) at all.
+    controls.enabled = false
+    // Clamp the delta before turning it into a lerp factor: RenderLoop only
+    // asks for a new frame every ~33ms, but a slow frame (e.g. the info panel
+    // mounting, images decoding) can make a single `delta` spike to 200ms+.
+    // Fed straight into `k`, that spike saturates to k=1 and teleports the
+    // camera the rest of the way in one visible jump right as the panel opens.
+    // Capping it keeps every step's motion bounded, at the cost of the
+    // animation taking a touch longer when frames are late.
+    const dt = Math.min(delta, 1 / 30)
+    const k = Math.min(1, dt * 4)
     camera.position.lerp(d.pos, k)
     controls.target.lerp(d.target, k)
     controls.update()
@@ -119,8 +136,14 @@ function CameraRig({ apiRef, controlsRef }) {
     if (camera.position.distanceTo(d.pos) < 0.05 && controls.target.distanceTo(d.target) < 0.05) {
       camera.position.copy(d.pos)
       controls.target.copy(d.target)
+      controls.enabled = true
       controls.update()
       dest.current = null
+    } else {
+      // Keep asking for the next frame as soon as the display can give one,
+      // instead of waiting on RenderLoop's throttled ~30fps cadence — makes
+      // the flight noticeably smoother while it's actually in motion.
+      invalidate()
     }
   })
 
@@ -201,6 +224,7 @@ export default function GalaxyScene({
         dampingFactor={0.08}
         minDistance={MIN_DIST}
         maxDistance={MAX_DIST}
+        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }}
         makeDefault
       />
     </>

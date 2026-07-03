@@ -89,7 +89,6 @@ export default function RegionBands({ activeRegions }) {
           key={b.region}
           position={b.labelPos}
           center
-          distanceFactor={110}
           zIndexRange={[20, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >

@@ -18,12 +18,12 @@ export default function RouteLegend({ activeIds, onToggle, onToggleAll }) {
       }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span
+        <h2
           className="font-sans text-[0.65rem] uppercase tracking-[0.35em]"
           style={{ color: 'var(--sith-red)' }}
         >
           Travel routes
-        </span>
+        </h2>
         <button
           onClick={onToggleAll}
           className="font-sans text-[0.6rem] uppercase tracking-[0.2em] hover:opacity-80 transition"
@@ -41,6 +41,7 @@ export default function RouteLegend({ activeIds, onToggle, onToggleAll }) {
             <li key={route.sithId}>
               <button
                 onClick={() => onToggle(route.sithId)}
+                aria-pressed={on}
                 className="w-full flex items-center gap-3 py-1 text-left group"
                 style={{ opacity: on ? 1 : 0.4, transition: 'opacity 0.15s' }}
               >

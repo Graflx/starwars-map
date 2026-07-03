@@ -5,7 +5,7 @@ import {
 } from '../../data/galacticGrid'
 
 const labelStyle = {
-  fontSize: '0.95rem',
+  fontSize: '0.7rem',
   fontFamily: 'monospace',
   color: '#8aa0c8',
   opacity: 0.7,
@@ -46,7 +46,6 @@ export default function GalaxyGrid() {
           key={`c${c.text}`}
           position={[c.x, 0, worldZ(ROW_MAX + 1.1)]}
           center
-          distanceFactor={70}
           zIndexRange={[20, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
@@ -58,7 +57,6 @@ export default function GalaxyGrid() {
           key={`r${r.text}`}
           position={[worldX(COL_MIN - 1.1), 0, r.z]}
           center
-          distanceFactor={70}
           zIndexRange={[20, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >

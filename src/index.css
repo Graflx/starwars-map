@@ -17,7 +17,7 @@
   --muted:         #2a2a35;
   --text-primary:  #f0e8e8;
   --text-secondary:#9a8888;
-  --text-dim:      #4a4050;
+  --text-dim:      #8f7c9b;
   --gold:          #c9a84c;
 }
 
@@ -68,6 +68,23 @@ body::after {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--void); }
 ::-webkit-scrollbar-thumb { background: var(--sith-red-dim); border-radius: 2px; }
+
+/* ── ACCESSIBILITY ── */
+/* Visible keyboard-focus ring, only for keyboard users (not on mouse click). */
+:focus-visible {
+  outline: 2px solid var(--sith-red);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ── UTILITIES ── */
 @layer utilities {
