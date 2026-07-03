@@ -163,13 +163,13 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
             >
               {slides.map((src, i) => (
                 <SwiperSlide key={`${planet.id}-${i}`}>
-                  <img src={src} alt={`${planet.name} — image ${i + 1} of ${slides.length}`} className="w-full h-full object-cover" />
+                  <img src={src} alt={`${planet.name} (${i + 1} of ${slides.length})`} className="w-full h-full object-cover" />
                 </SwiperSlide>
               ))}
             </Swiper>
 
             <div
-              className="absolute inset-0 pointer-events-none"
+              className="absolute inset-0 z-10 pointer-events-none"
               style={{
                 background:
                   'linear-gradient(to top, rgba(10,10,14,1) 2%, rgba(10,10,14,0.35) 40%, rgba(10,10,14,0.15) 100%)',
@@ -213,7 +213,7 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
               </>
             )}
 
-            <div className="absolute bottom-4 left-8 right-8 pointer-events-none">
+            <div className="absolute bottom-4 left-8 right-8 z-10 pointer-events-none">
               <p
                 className="font-sans text-[0.65rem] uppercase tracking-[0.4em] mb-1"
                 style={{ color: 'var(--sith-red)' }}
