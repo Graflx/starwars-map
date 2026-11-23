@@ -2,20 +2,21 @@ import React, { useState, useMemo, useRef, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import GalaxyScene from '../components/galaxy/GalaxyScene'
 import RouteLegend from '../components/galaxy/RouteLegend'
-import PlanetInfoPanel from '../components/galaxy/PlanetInfoPanel'
+import EntityInfoPanel from '../components/galaxy/EntityInfoPanel'
 import Timeline from '../components/galaxy/Timeline'
 import NavControls from '../components/galaxy/NavControls'
 import FilterPanel from '../components/galaxy/FilterPanel'
 import { sithRoutes, tToYear } from '../data/sithRoutes'
-import { planets, getPlanet, inContinuity } from '../data/planets'
+import { planets, getPlanet } from '../data/planets'
 import { matchesFilters, hasActiveFilters } from '../data/planetFilters'
+import { entityTypes } from '../data/entityTypes'
 
 // Sith travel routes + timeline hidden for now (the map should stay clean).
 // To re-enable, just set to `true` — the code is preserved.
 const SHOW_ROUTES = false
 
 export default function GalaxyMap() {
-  const [selectedPlanetId, setSelectedPlanetId] = useState(null)
+  const [selectedEntity, setSelectedEntity] = useState(null) // { type, id } | null
   const [activeIds, setActiveIds] = useState(() => new Set(sithRoutes.map((r) => r.sithId)))
   const [timeT, setTimeT] = useState(1) // handle position 0..1; 1 = most recent events
   const [continuity, setContinuity] = useState('canon') // 'canon' | 'legends'
@@ -40,24 +41,32 @@ export default function GalaxyMap() {
   }
   const controlsRef = useRef(null)
   const cameraApiRef = useRef(null) // animated camera API set by the CameraRig
-  const mainHeadingRef = useRef(null) // focus fallback once PlanetInfoPanel closes
+  const mainHeadingRef = useRef(null) // focus fallback once EntityInfoPanel closes
   const infoPanelOpenerRef = useRef(null) // element to return focus to on close
 
-  // Switch continuity; close the popup if its world isn't shown in the new mode.
+  // Switch continuity; close the popup if the selected entity isn't shown in
+  // the new mode (generic across every content type, not just planets).
   const changeContinuity = (mode) => {
     setContinuity(mode)
-    const sel = selectedPlanetId ? getPlanet(selectedPlanetId) : null
-    if (sel && !inContinuity(sel, mode)) setSelectedPlanetId(null)
+    if (!selectedEntity) return
+    const config = entityTypes[selectedEntity.type]
+    const entity = config.getEntity(selectedEntity.id)
+    if (entity && !config.inContinuity(entity, mode)) setSelectedEntity(null)
+  }
+
+  // Open any entity's info panel. Captures the currently focused element
+  // *synchronously*, before any of it can unmount (e.g. the search input,
+  // whose containing FilterPanel closes in this same update), so
+  // EntityInfoPanel can hand focus back to it once closed.
+  const openEntity = (type, id) => {
+    infoPanelOpenerRef.current = document.activeElement
+    setSelectedEntity({ type, id })
   }
 
   // Focus a planet: open the popup AND smoothly move/center the camera.
-  // Used by the search AND by clicking on a planet. Captures the currently
-  // focused element *synchronously*, before any of it can unmount (e.g. the
-  // search input, whose containing FilterPanel closes in this same update),
-  // so PlanetInfoPanel can hand focus back to it once closed.
+  // Used by the search AND by clicking on a planet.
   const focusOnPlanet = (id) => {
-    infoPanelOpenerRef.current = document.activeElement
-    setSelectedPlanetId(id)
+    openEntity('planet', id)
     cameraApiRef.current?.focusPlanet(getPlanet(id))
   }
 
@@ -66,7 +75,6 @@ export default function GalaxyMap() {
     [activeIds],
   )
   const currentYear = useMemo(() => tToYear(timeT), [timeT])
-  const selectedPlanet = selectedPlanetId ? getPlanet(selectedPlanetId) : null
   const filters = useMemo(
     () => ({ continuity, famousOnly, regions, types, factions }),
     [continuity, famousOnly, regions, types, factions],
@@ -96,7 +104,7 @@ export default function GalaxyMap() {
           onContinuity={changeContinuity}
           famousOnly={famousOnly}
           onFamous={setFamousOnly}
-          onSearchSelect={(planet) => focusOnPlanet(planet.id)}
+          onSearchSelect={(hit) => (hit.type === 'planet' ? focusOnPlanet(hit.id) : openEntity(hit.type, hit.id))}
           visibleCount={visibleCount}
           regions={regions}
           types={types}
@@ -130,7 +138,7 @@ export default function GalaxyMap() {
             <GalaxyScene
               activeRoutes={SHOW_ROUTES ? activeRoutes : []}
               currentYear={currentYear}
-              selectedPlanetId={selectedPlanetId}
+              selectedPlanetId={selectedEntity?.type === 'planet' ? selectedEntity.id : null}
               onSelectPlanet={focusOnPlanet}
               controlsRef={controlsRef}
               cameraApiRef={cameraApiRef}
@@ -151,9 +159,10 @@ export default function GalaxyMap() {
 
       <NavControls cameraApiRef={cameraApiRef} />
 
-      <PlanetInfoPanel
-        planet={selectedPlanet}
-        onClose={() => setSelectedPlanetId(null)}
+      <EntityInfoPanel
+        type={selectedEntity?.type}
+        id={selectedEntity?.id}
+        onClose={() => setSelectedEntity(null)}
         openerRef={infoPanelOpenerRef}
         fallbackFocusRef={mainHeadingRef}
       />

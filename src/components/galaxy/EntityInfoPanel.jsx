@@ -2,85 +2,33 @@ import React, { useEffect, useId, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import 'swiper/css'
-import { imageForPlanet, getPreviewImage, getPlanetImages } from './planetImages'
-import { wikiUrl } from '../../data/wookieepedia'
+import { entityTypes, getEntity } from '../../data/entityTypes'
 
-// One label/value row of the facts table.
-function Fact({ label, value }) {
-  if (!value || value === 'unknown' || value === 'n/a') return null
-  return (
-    <tr className="border-b" style={{ borderColor: 'rgba(226,34,34,0.08)' }}>
-      <th
-        scope="row"
-        className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-left font-normal py-1.5 pr-4"
-        style={{ color: 'var(--text-dim)' }}
-      >
-        {label}
-      </th>
-      <td className="font-sans text-sm text-right py-1.5" style={{ color: 'var(--text-primary)' }}>
-        {value}
-      </td>
-    </tr>
-  )
-}
-
-// A group of Wookieepedia-linked chips (affiliation / species / points of interest).
-function ChipLinks({ label, items }) {
-  if (!items || items.length === 0) return null
-  return (
-    <div className="mb-6">
-      <h3 className="font-sans text-[0.65rem] uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--text-dim)' }}>
-        {label}
-      </h3>
-      <ul className="flex flex-wrap gap-2">
-        {items.map((t) => (
-          <li key={t}>
-            <a
-              href={wikiUrl(t)}
-              target="_blank"
-              rel="noreferrer"
-              className="font-sans text-xs px-2.5 py-1 rounded-sm hover:opacity-80 transition inline-block"
-              style={{ background: 'var(--obsidian)', border: '1px solid rgba(226,34,34,0.2)', color: 'var(--text-primary)' }}
-            >
-              {t} <span aria-hidden="true">↗</span>
-              <span className="sr-only"> (opens Wookieepedia in a new tab)</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-// Slide-in panel on the right. Shows authored lore, an impressions slider, and
-// planet facts sourced from Wookieepedia (bundled locally in planetFacts.json).
-export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFocusRef }) {
+// Slide-in panel on the right — the shared shell for every content type
+// (accessibility plumbing, animation, image header). Per-type fact tables /
+// chip groups live in entityPanels/<Type>Facts.jsx, looked up via the
+// entityTypes registry so this file never needs to know a type exists.
+//
+// This is a direct generalization of the original PlanetInfoPanel.jsx: same
+// focus-management, Escape-handling and slide-in animation, just driven by
+// `{ type, id }` instead of a planet object directly.
+export default function EntityInfoPanel({ type, id, onClose, openerRef, fallbackFocusRef }) {
   const [slide, setSlide] = useState(0)
   const swiperRef = useRef(null)
   const panelRef = useRef(null)
   const titleId = useId()
-  const loreId = useId()
+  const descId = useId()
 
-  const previewUrl = planet ? getPreviewImage(planet.id) || imageForPlanet(planet) : null
-  const slides = planet ? [previewUrl, ...getPlanetImages(planet.id)].filter(Boolean) : []
-  // Facts live on the planet object itself (planets.json). Some are strictly
-  // typed now (terrain array, population object, numeric diameter/rotation) so
-  // format them back into display strings here.
-  const facts = planet || {}
-  const terrain = Array.isArray(facts.terrain) ? facts.terrain.join(', ') : facts.terrain
-  const diameter =
-    typeof facts.diameter === 'number' ? `${facts.diameter.toLocaleString('en-US')} km` : facts.diameter
-  const rotation =
-    typeof facts.rotation === 'number' ? `${facts.rotation} standard hours` : facts.rotation
-  const pop = facts.population
-  const popObject = pop && typeof pop === 'object'
-  const population = popObject ? (pop.total != null ? pop.total.toLocaleString('en-US') : null) : pop
-  const demographics = popObject && pop.demographics ? Object.entries(pop.demographics) : []
+  const config = type ? entityTypes[type] : null
+  const entity = type && id ? getEntity(type, id) : null
+
+  const previewUrl = entity ? config.getPreview(entity.id) : null
+  const slides = entity ? [previewUrl, ...config.getGallery(entity.id)].filter(Boolean) : []
 
   // Return focus to whatever opened the panel (captured by the caller before
   // anything could unmount) — falling back to a stable page anchor if that
   // element is no longer around (e.g. a search result inside the FilterPanel,
-  // which closes itself the moment a planet is picked).
+  // which closes itself the moment an entity is picked).
   const handleClose = () => {
     onClose()
     const opener = openerRef?.current
@@ -91,9 +39,9 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
     }
   }
 
-  // Reset to the first slide when the planet changes and move focus into the panel.
+  // Reset to the first slide when the entity changes and move focus into the panel.
   useEffect(() => {
-    if (!planet) return
+    if (!entity) return
     setSlide(0)
     swiperRef.current?.slideTo(0, 0)
     // preventScroll: true — without it, focusing the panel while it's still
@@ -102,21 +50,22 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
     // view" kick in, which scrolls <main> horizontally by the panel's own
     // width and back — the map briefly jumps left as a side effect.
     panelRef.current?.focus({ preventScroll: true })
-  }, [planet])
+  }, [entity])
 
   return (
     <AnimatePresence>
-      {planet && (
+      {entity && (
         <motion.aside
-          // No per-planet key: this is the single conditional child AnimatePresence
-          // tracks here, so switching from one planet to another while the panel
-          // is already open re-renders it in place (content just swaps). Keying
-          // by planet.id would make AnimatePresence treat every switch as "this
-          // element left, a new one arrived" — exit-animating the old aside while
-          // enter-animating a new one over it, briefly overlapping two <aside>s.
+          // No per-entity key: this is the single conditional child
+          // AnimatePresence tracks here, so switching from one entity to
+          // another while the panel is already open re-renders it in place
+          // (content just swaps). Keying by entity.id would make
+          // AnimatePresence treat every switch as "this element left, a new
+          // one arrived" — exit-animating the old aside while enter-animating
+          // a new one over it, briefly overlapping two <aside>s.
           ref={panelRef}
           aria-labelledby={titleId}
-          aria-describedby={loreId}
+          aria-describedby={descId}
           tabIndex={-1}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
@@ -147,7 +96,7 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
               border: '1px solid rgba(226,34,34,0.4)',
               color: 'var(--sith-red)',
             }}
-            aria-label="Close planet details"
+            aria-label={`Close ${config.label.toLowerCase()} details`}
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -159,11 +108,11 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
               onSlideChange={(s) => setSlide(s.realIndex)}
               loop={slides.length > 1}
               className="absolute inset-0 w-full h-full"
-              aria-label={`${planet.name} imagery`}
+              aria-label={`${entity.name} imagery`}
             >
               {slides.map((src, i) => (
-                <SwiperSlide key={`${planet.id}-${i}`}>
-                  <img src={src} alt={`${planet.name} (${i + 1} of ${slides.length})`} className="w-full h-full object-cover" />
+                <SwiperSlide key={`${entity.id}-${i}`}>
+                  <img src={src} alt={`${entity.name} (${i + 1} of ${slides.length})`} className="w-full h-full object-cover" />
                 </SwiperSlide>
               ))}
             </Swiper>
@@ -218,60 +167,23 @@ export default function PlanetInfoPanel({ planet, onClose, openerRef, fallbackFo
                 className="font-sans text-[0.65rem] uppercase tracking-[0.4em] mb-1"
                 style={{ color: 'var(--sith-red)' }}
               >
-                {planet.region}
+                {config.eyebrow(entity)}
               </p>
               <h2
                 id={titleId}
                 className="font-display text-4xl font-black leading-none"
                 style={{ color: 'var(--text-primary)', textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
               >
-                {planet.name}
+                {entity.name}
               </h2>
             </div>
           </div>
 
-          <p id={loreId} className="font-serif italic text-base mb-6" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-            {planet.lore}
+          <p id={descId} className="font-serif italic text-base mb-6" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            {config.description(entity)}
           </p>
 
-          {/* Facts from Wookieepedia (bundled locally) */}
-          <div className="mb-6">
-            <table className="w-full" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <caption className="sr-only">Planet facts</caption>
-              <colgroup>
-                <col style={{ width: '40%' }} />
-                <col />
-              </colgroup>
-              <tbody>
-                <Fact label="Region" value={facts.region} />
-                <Fact label="Sector" value={facts.sector} />
-                <Fact label="System" value={facts.system} />
-                <Fact label="Class" value={facts.class} />
-                <Fact label="Climate" value={facts.climate} />
-                <Fact label="Terrain" value={terrain} />
-                <Fact label="Atmosphere" value={facts.atmosphere} />
-                <Fact label="Gravity" value={facts.gravity} />
-                <Fact label="Surface water" value={facts.water} />
-                <Fact label="Diameter" value={diameter} />
-                <Fact label="Rotation period" value={rotation} />
-                <Fact label="Orbital period" value={facts.orbital} />
-                <Fact label="Population" value={population} />
-              </tbody>
-            </table>
-            {demographics.length > 0 && (
-              <p className="flex flex-wrap gap-x-3 gap-y-1 pt-2 font-sans text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {demographics.map(([name, pct]) => (
-                  <span key={name}>
-                    {name} <span style={{ color: 'var(--sith-red)' }}>{pct}%</span>
-                  </span>
-                ))}
-              </p>
-            )}
-          </div>
-
-          <ChipLinks label="Affiliation" items={facts.affiliation} />
-          <ChipLinks label="Native species" items={facts.species} />
-          <ChipLinks label="Points of interest" items={facts.pointsOfInterest} />
+          <config.FactsComponent entity={entity} />
         </motion.aside>
       )}
     </AnimatePresence>

@@ -1,5 +1,7 @@
 import React, { useId, useMemo, useRef, useState } from 'react'
 import { planets, inContinuity } from '../../data/planets'
+import { allSpecies, inContinuity as inSpeciesContinuity } from '../../data/species'
+import { entityTypes } from '../../data/entityTypes'
 
 // Levenshtein distance (small → similar) for typo-tolerant search.
 function lev(a, b) {
@@ -33,11 +35,18 @@ function score(query, name) {
   return d <= maxD ? 60 - d * 12 : 0
 }
 
-// Search bar with auto-suggestions. onSelect(planet) is called on click/Enter.
-// Only suggests worlds visible in the current continuity ('canon' | 'legends').
+// Search bar with auto-suggestions across content types. onSelect(hit) is
+// called on click/Enter, where `hit` is `{ id, type, name, subtitle }`.
+// Only suggests entries visible in the current continuity ('canon' | 'legends').
 // Implemented as an ARIA 1.2 combobox (input) + listbox (suggestions) pair:
 // the input keeps focus at all times and drives the highlighted option via
 // aria-activedescendant, exactly matching the existing arrow-key behaviour.
+//
+// NOTE: this hand-rolled matcher over two hardcoded type arrays is a stopgap
+// to prove cross-type search wiring end-to-end (see EntityInfoPanel). It's
+// meant to be superseded by a unified Fuse.js index over every content type's
+// searchIndex.js entries, per the approved Codex plan (section 2.3) — do not
+// keep bolting more types onto this list; build the real index instead.
 export default function SearchBar({ onSelect, continuity = 'canon' }) {
   const [value, setValue] = useState('')
   const [open, setOpen] = useState(false)
@@ -50,23 +59,32 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
 
   const suggestions = useMemo(() => {
     if (!value.trim()) return []
-    return planets
+    const planetHits = planets
       .filter((p) => inContinuity(p, continuity))
-      .map((p) => ({ p, s: score(value, p.name) }))
+      .map((p) => ({ id: p.id, type: 'planet', name: p.name, subtitle: p.region, s: score(value, p.name) }))
+    const speciesHits = allSpecies
+      .filter((sp) => inSpeciesContinuity(sp, continuity))
+      .map((sp) => ({
+        id: sp.id,
+        type: 'species',
+        name: sp.name,
+        subtitle: sp.classification || sp.designation || entityTypes.species.label,
+        s: score(value, sp.name),
+      }))
+    return [...planetHits, ...speciesHits]
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, 6)
-      .map((x) => x.p)
   }, [value, continuity])
 
   const isOpen = open && suggestions.length > 0
 
-  const choose = (planet) => {
-    if (!planet) return
-    onSelect(planet)
-    setValue(planet.name)
+  const choose = (hit) => {
+    if (!hit) return
+    onSelect(hit)
+    setValue(hit.name)
     setOpen(false)
-    // No explicit blur(): selecting a planet opens PlanetInfoPanel, which
+    // No explicit blur(): selecting a hit opens EntityInfoPanel, which
     // moves focus into itself and also needs document.activeElement (still
     // this input, until then) to know where to return focus once it closes.
   }
@@ -93,7 +111,7 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
   return (
     <div className="relative w-full">
       <label htmlFor={baseId} id={labelId} className="sr-only">
-        Search planet
+        Search
       </label>
       <input
         id={baseId}
@@ -107,7 +125,7 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
         onFocus={() => value.trim() && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         onKeyDown={onKeyDown}
-        placeholder="Search planet…"
+        placeholder="Search…"
         className="w-full font-sans text-sm px-4 py-2 outline-none"
         style={{
           background: 'rgba(10,10,14,0.8)',
@@ -136,29 +154,30 @@ export default function SearchBar({ onSelect, continuity = 'canon' }) {
             backdropFilter: 'blur(8px)',
           }}
         >
-          {suggestions.map((p, i) => (
+          {suggestions.map((hit, i) => (
             <li
-              key={p.id}
+              key={`${hit.type}-${hit.id}`}
               id={optionId(i)}
               role="option"
               aria-selected={i === hi}
               // onMouseDown instead of onClick: fires before input.onBlur
               onMouseDown={(e) => {
                 e.preventDefault()
-                choose(p)
+                choose(hit)
               }}
               onMouseEnter={() => setHi(i)}
               className="w-full text-left px-4 py-2 flex items-center justify-between gap-3 transition cursor-pointer"
               style={{ background: i === hi ? 'rgba(226,34,34,0.15)' : 'transparent' }}
             >
-              <span className="font-display text-sm" style={{ color: 'var(--text-primary)' }}>
-                {p.name}
+              <span className="font-display text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <span aria-hidden="true">{entityTypes[hit.type]?.icon}</span>
+                {hit.name}
               </span>
               <span
                 className="font-sans text-[0.6rem] uppercase tracking-[0.15em] truncate"
                 style={{ color: 'var(--text-dim)' }}
               >
-                {p.region}
+                {hit.subtitle}
               </span>
             </li>
           ))}

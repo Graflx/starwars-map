@@ -41,11 +41,15 @@ import {
   continuityArray,
   parsePopulation,
 } from './lib/normalize.mjs'
+import { idFromTitle, isCanonArticle } from './lib/ids.mjs'
+import { extractFileTitle, sniffExt, hasPreview } from './lib/images.mjs'
+import { CACHE_SCHEMA_VERSION } from './lib/cache.mjs'
 
 // Cache stores the RAW response per page ({revid, categories, lead}); all facts
 // / continuity are re-derived from it on every run, so logic changes never
-// require re-fetching. Bump only when the RAW cache shape changes.
-const SCHEMA_VERSION = 5
+// require re-fetching. Shared across every sync-<type>.mjs script — see
+// lib/cache.mjs for why the version constant must stay global.
+const SCHEMA_VERSION = CACHE_SCHEMA_VERSION
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '../..')
 const DATA = path.join(ROOT, 'src', 'data')
@@ -136,31 +140,10 @@ const mergeContinuity = (oldC, newC) => {
   return 'both'
 }
 
-// Wiki title -> stable kebab id (matching existing curated ids where possible).
-function idFromTitle(title) {
-  return title
-    .replace(/\/Legends$/i, '')
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
 // Wiki categories use underscores ("Desert_planets") — normalise, then test.
 function isPlanet(categories) {
   const cats = categories.map((c) => c.toLowerCase().replace(/_/g, ' '))
   return cats.some((c) => /\bplanets?\b/.test(c))
-}
-
-// Canon vs Legends is NOT reliable from the title: Legends-only planets live at
-// their base title (no "/Legends" suffix — that suffix only exists when a canon
-// counterpart also does). The reliable marker is the article's category: canon
-// articles are tagged "Canon articles"; everything else (/Legends pages AND
-// legends-only base titles like "Vandor-1") is Legends.
-function isCanonArticle(categories) {
-  return categories.some((c) => /^canon[ _]articles/i.test(c))
 }
 
 // Turn a {{CelestialBody}} field map into strictly-typed facts + a placement
@@ -208,39 +191,12 @@ function deriveRecord(id, name, fields) {
   return { facts, record }
 }
 
-function extractFileTitle(raw) {
-  if (!raw) return null
-  const m = /(?:File:)?\s*([^[\]|{}]+?\.(?:png|jpg|jpeg|gif|webp))/i.exec(String(raw))
-  return m ? m[1].trim().replace(/ /g, '_') : null
-}
-
 // Lead section (everything before the first == heading) — contains the infobox
 // + intro. Cached instead of the full article so the cache stays a sane size.
 function leadSection(wikitext) {
   if (!wikitext) return ''
   const m = /\n==[^=\n]/.exec(wikitext)
   return m ? wikitext.slice(0, m.index) : wikitext
-}
-
-// Detect the real image type from magic bytes — the Fandom CDN often serves
-// webp regardless of the .png/.jpg url, so trust the bytes, not the extension.
-function sniffExt(buf) {
-  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp'
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50) return 'png'
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8) return 'jpg'
-  if (buf.length >= 4 && buf.toString('ascii', 0, 3) === 'GIF') return 'gif'
-  return 'png'
-}
-
-// Does this world already have a preview image on disk? (curated or synced)
-async function hasPreview(dir) {
-  for (const ext of ['png', 'jpg', 'jpeg', 'gif', 'webp']) {
-    try {
-      await fs.access(path.join(dir, `preview.${ext}`))
-      return true
-    } catch {}
-  }
-  return false
 }
 
 // --- main ----------------------------------------------------------------

@@ -27,3 +27,12 @@ yarn-error.log*
 
 # raw downloaded texture archives — not used by the app, regenerable
 /src/assets/planets/zips/
+
+# species thumbnails (~430 MB, Wookieepedia/Fair Use) — regenerate with `npm run sync-species`
+/src/assets/species/*
+!/src/assets/species/.gitkeep
+
+# reference images used while building the map, not used by the app
+/star_wars___map_of_the_galaxy_by_86botond_*.jpg
+/star_wars_galaxy_map_4000x4000_*.jpeg
+/Galaxy Map.svg

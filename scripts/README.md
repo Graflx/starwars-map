@@ -1,4 +1,37 @@
-# Planet sync
+# Content sync scripts
+
+Every `sync-<type>.mjs` script mirrors one Wookieepedia infobox template into
+`src/data/<type>.json` (+ one thumbnail per entry into `src/assets/<type>/<id>/preview.*`)
+so the app never hits the API at runtime. They share a generic harness
+(enumeration, revision caching, concurrency pool, incremental/crash-resumable
+writes) in `scripts/lib/sync-runner.mjs` — a new type is a short script that
+just plugs in a template name + a `deriveFacts(fields)` mapper, see
+`scripts/sync-species.mjs` for the smallest example.
+
+Shared library modules (`scripts/lib/`):
+- `wookiee.mjs` — the Fandom/MediaWiki API client (rate-limited, retrying).
+- `cache.mjs` — the **one shared** raw-page cache (`scripts/.cache/pages.json`),
+  keyed by wiki title across every type. Don't run sync scripts concurrently —
+  each does a full read/mutate/write cycle against this file; use
+  `npm run sync-all` (sequential) once more than one type needs a fresh run.
+- `ids.mjs` — `idFromTitle()` / `isCanonArticle()`, identical across types so
+  cross-type references (e.g. a species' `homeworldId`) resolve against the id
+  a sibling sync script produces for that same wiki title.
+- `images.mjs` — image-file extraction + magic-byte sniffing for downloads.
+- `infobox.mjs` — wikitext/infobox parsing, incl. `extractLead()` for the
+  shared `summary` field (article intro with the infobox stripped out).
+- `sync-runner.mjs` — the harness itself (`runSync({...})`).
+
+Every type's output shares a common shape — `id`, `name`, `continuity`,
+`wiki` (article title, for `wikiUrl()`), `summary`, `imageFile` — plus its own
+typed facts. Cross-type references are plain string ids on a type-named field
+(`homeworldId` → `getPlanet()`, `speciesId` → `getSpecies()`, ...), resolved at
+runtime; there's no enforced schema (no TypeScript in this codebase), so a
+resolver should always tolerate an id that doesn't resolve (wiki data is
+messy — e.g. ~20% of species `homeworldId`s point at a system or a
+Legends-only world outside the synced planet set, not a plain error).
+
+## Planet sync
 
 Mirrors every Star Wars planet from Wookieepedia (canon **and** legends — both
 use the `{{CelestialBody}}` infobox) into the app so it never hits the API at
@@ -59,6 +92,16 @@ A full sync yields ~5.8k planets (~5.3k with positions). Rendering that many
 spheres in `GalaxyScene` is heavy (the scene was built for ~64). If the map gets
 sluggish, consider instancing / distance culling / an LOD sprite layer, or run
 `--canon-only` for a smaller set.
+
+## Species sync
+
+`npm run sync-species` / `sync-species:canon` / `sync-species:cache`. Every
+`{{Species}}` page (canon + legends), ~5k entries. Facts: `designation`,
+`classification`, `subspecies`, `homeworld`/`homeworldId`, `height`, `length`,
+`mass`, `skinColor`, `hairColor`, `eyeColor`, `distinctions`, `lifespan`,
+`habitat`, `diet`, `language` (list fields are arrays — Wookieepedia infoboxes
+bullet-list these even for otherwise-scalar-looking fields like `mass`, e.g.
+separate male/female weights).
 
 ## Scheduling (optional)
 

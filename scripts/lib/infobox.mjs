@@ -6,24 +6,39 @@
 
 // --- template extraction ------------------------------------------------
 
-// Find the first {{<name> ... }} template and return the raw inner text
-// (everything between the template name and the matching closing braces),
-// respecting nested {{ }} and [[ ]].
-export function extractTemplate(wikitext, name) {
+// Locate the first {{<name> ... }} template, respecting nested {{ }} and
+// [[ ]]. Returns { start, innerStart, innerEnd, end } (all string indices
+// into `wikitext`) or null if the template isn't present.
+function templateSpan(wikitext, name) {
   if (!wikitext) return null
   const re = new RegExp('\\{\\{\\s*' + name + '\\b', 'i')
   const m = re.exec(wikitext)
   if (!m) return null
   let i = m.index + 2
   let depth = 1
-  const startInner = i
+  const innerStart = i
   while (i < wikitext.length && depth > 0) {
     if (wikitext.startsWith('{{', i)) { depth++; i += 2; continue }
     if (wikitext.startsWith('}}', i)) { depth--; i += 2; continue }
     i++
   }
-  // inner text excludes the final "}}"
-  return wikitext.slice(startInner, i - 2)
+  return { start: m.index, innerStart, innerEnd: i - 2, end: i }
+}
+
+// Find the first {{<name> ... }} template and return the raw inner text
+// (everything between the template name and the matching closing braces),
+// respecting nested {{ }} and [[ ]].
+export function extractTemplate(wikitext, name) {
+  const span = templateSpan(wikitext, name)
+  return span ? wikitext.slice(span.innerStart, span.innerEnd) : null
+}
+
+// Remove the first {{<name> ... }} template (the whole block, braces
+// included) from wikitext, leaving the surrounding prose untouched.
+export function stripTemplate(wikitext, name) {
+  const span = templateSpan(wikitext, name)
+  if (!span) return wikitext
+  return wikitext.slice(0, span.start) + wikitext.slice(span.end)
 }
 
 // Split the template inner text into `key=value` pairs on top-level pipes,
@@ -94,6 +109,17 @@ export function toList(raw) {
   // If there were no bullets it's a single value.
   const out = chunks.length ? chunks : [cleanValue(raw)].filter(Boolean)
   return [...new Set(out)]
+}
+
+// Plain-text summary from an article's opening prose — the infobox template
+// stripped out, remaining simple templates/markup cleaned. This is the
+// shared `summary` field for types without a rich facts panel (people,
+// films, books, games); `wikitext` should be the page's lead section
+// (everything before the first == heading), same input as extractTemplate.
+export function extractLead(wikitext, templateName) {
+  if (!wikitext) return ''
+  const withoutInfobox = templateName ? stripTemplate(wikitext, templateName) : wikitext
+  return cleanValue(withoutInfobox)
 }
 
 // --- classification ------------------------------------------------------

@@ -20,7 +20,10 @@
     "eject": "react-scripts eject",
     "sync-planets": "node scripts/sync-planets.mjs",
     "sync-planets:canon": "node scripts/sync-planets.mjs --canon-only",
-    "sync-planets:cache": "node scripts/sync-planets.mjs --from-cache"
+    "sync-planets:cache": "node scripts/sync-planets.mjs --from-cache",
+    "sync-species": "node scripts/sync-species.mjs",
+    "sync-species:canon": "node scripts/sync-species.mjs --canon-only",
+    "sync-species:cache": "node scripts/sync-species.mjs --from-cache"
   },
   "eslintConfig": {
     "extends": "react-app"
